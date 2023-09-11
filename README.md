@@ -107,3 +107,5 @@ Each alias has a unique ARN. An alias can point only to a function version, not 
 Event sources such as Amazon Simple Storage Service (Amazon S3) invoke your Lambda function. These event sources maintain a mapping that identifies the function to invoke when events occur. If you specify a Lambda function alias in the mapping configuration, you don't need to update the mapping when the function version changes. For more information, see Lambda event source mappings.
 
 In a resource policy, you can grant permissions for event sources to use your Lambda function. If you specify an alias ARN in the policy, you don't need to update the policy when the function version changes.
+
+https://github.com/terraform-aws-modules/terraform-aws-lambda/blob/master/examples/deploy/main.tf
