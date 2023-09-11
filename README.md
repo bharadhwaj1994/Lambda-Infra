@@ -2,7 +2,17 @@
 
 Reporting Public Api is exposed to B2B partners to get generated reports from bikeleasing. The reports essentially consists of data such as contract data from financials to bike and employee details. The REST Api is used to get the customer requests over internet to calls the API gateway endpoint we use aws cognito or lambda authorizer or okta/auth0 etc to authorize the user and authenticate the client request is case the user is not authenticated the API returns a default http error messages such as 403 in case the user is authorized the request is send to aws Lambda where our kotlin based code is running as a lambda function. Kotlin code reads the client request and queries the database in our case MySQL rds and returns the response from the database and the next step is to convert the data into client requested file format and encrypt the file with PGP encryption and the next step is to drop the file in an aws S3 bucket associated to specific client (one folder for each b2b client) we send the generated report to b2b server location using aws transfer family using sftp by establishing a ssh connection using ssh private key/ user id/password associated to remote sftp public key. Once the report is in S3 bucket the aws transfer family invokes startFileTransfer API to send the file to destination server sftp location. Further we can leverage hashicorp vault or aws secret manager to store sensitive credentials such as database credentials to securely receive the credentials we create security group connections from the vpc our lambda is hosted in to the vault server. Further we make use of IAM Roles and IAM Policies to have lambda access to S3 bucket and aws secret manager and few other IAM roles policies for cloud watch, API Gateway etc. 
 
+Kotlin with GraalVM defined
+
+Oracle GraalVM is a high-performance JDK that can speed up the performance of Java and JVM-based applications using an alternative just-in-time (JIT) compiler. It lowers application latency, improves peak throughput by reducing garbage collection time, and comes with 24/7 Oracle support.
+
 Why use lambda, API Gateway and AWS Transfer family ?
+
+As your functions receive more requests, Lambda automatically handles scaling the number of execution environments until you reach your account's concurrency limit. By default, Lambda provides your account with a total concurrency limit of 1,000 across all functions in a region.
+
+Concurrency is the number of in-flight requests your AWS Lambda function is handling at the same time. For each concurrent request, Lambda provisions a separate instance of your execution environment. As your functions receive more requests, Lambda automatically handles scaling the number of execution environments until you reach your account's concurrency limit. By default, Lambda provides your account with a total concurrency limit of 1,000 across all functions in a region. To support your specific account needs, you can request a quota increase and configure function-level concurrency controls so that your critical functions don't experience throttling.
+
+Lambda invokes your function in a secure and isolated execution environment. To handle a request, Lambda must first initialize an execution environment (the Init phase), before using it to invoke your function (the Invoke phase):
 
 Using API Gateway provides users with a secure HTTP endpoint to invoke your Lambda function and can help manage large volumes of calls to your function by throttling traffic and automatically validating and authorizing API calls. API Gateway also provides flexible security controls using AWS Identity and Access Management (IAM) and Amazon Cognito. 
 
@@ -34,7 +44,11 @@ you maintain data lineage.
 
 
 Requires IAM Policies
-    IAM policy allows Lambda to perform CRUD operations on a Database table and write to Amazon CloudWatch Logs further we create a IAM role and attach the created policies to the IAM Role this can also be achieved using Terraforms and this can we automated with CI/CD using Jenkins where the terraforms are put in a github repo and connected to Jenkins server using webhoots and aws plugins are installed on the Jenkins server with associated credentail information about aws account, region where the resources need ot he created and We can configure Jenkins to init the terraform, plan the terraform and apply the terraform or destroy the terraform using Jenkins file where the stages are defined. any new changes to the terraform triggers a jenkins build and changes are pushed to aws and appropriate resources are modified/changed per requirements. 
+    IAM policy allows Lambda to perform CRUD operations on a Database table and write to Amazon CloudWatch Logs further we create a IAM role and attach the created policies to the IAM Role this can also be achieved using Terraforms and this can we automated with CI/CD using Jenkins where the terraforms are put in a github repo and connected to Jenkins server using webhooks and aws plugins are installed on the Jenkins server with associated credentail information about aws account, region where the resources need ot he created and We can configure Jenkins to init the terraform, plan the terraform and apply the terraform or destroy the terraform using Jenkins file where the stages are defined. any new changes to the terraform triggers a jenkins build and changes are pushed to aws and appropriate resources are modified/changed per requirements. 
+
+    Resource based IAM role and policy for API Gateway to invoke lambda
+    IAM S3 policy for lambda to perform operations with s3 like create/read delete objects in s3
+    IAM cloudwatch lambda policy to allow lambda to publich logs to cloud watch 
 
 Sample policies
 
@@ -66,3 +80,30 @@ Sample policies
     }
   ]
 }
+
+
+How to deploy and manage Lambda Functions?
+Simple deployments
+Typically, Lambda Function resource updates when source code changes. If publish = true is specified a new Lambda Function version will also be created.
+
+Published Lambda Function can be invoked using either by version number or using $LATEST. This is the simplest way of deployment which does not required any additional tool or service.
+
+Controlled deployments (rolling, canary, rollbacks)
+In order to do controlled deployments (rolling, canary, rollbacks) of Lambda Functions we need to use Lambda Function aliases.
+
+In simple terms, Lambda alias is like a pointer to either one version of Lambda Function (when deployment complete), or to two weighted versions of Lambda Function (during rolling or canary deployment).
+
+One Lambda Function can be used in multiple aliases. Using aliases gives large control of which version deployed when having multiple environments.
+
+There is alias module, which simplifies working with alias (create, manage configurations, updates, etc). See examples/alias for various use-cases how aliases can be configured and used.
+
+There is deploy module, which creates required resources to do deployments using AWS CodeDeploy. It also creates the deployment, and wait for completion. See examples/deploy for complete end-to-end build/update/deploy process.
+
+
+
+Using aliases
+Each alias has a unique ARN. An alias can point only to a function version, not to another alias. You can update an alias to point to a new version of the function.
+
+Event sources such as Amazon Simple Storage Service (Amazon S3) invoke your Lambda function. These event sources maintain a mapping that identifies the function to invoke when events occur. If you specify a Lambda function alias in the mapping configuration, you don't need to update the mapping when the function version changes. For more information, see Lambda event source mappings.
+
+In a resource policy, you can grant permissions for event sources to use your Lambda function. If you specify an alias ARN in the policy, you don't need to update the policy when the function version changes.
